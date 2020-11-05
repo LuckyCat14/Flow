@@ -1,0 +1,391 @@
+<html>
+<head>
+
+<style>
+body {
+  padding: 20px;
+}
+
+#banner-message {
+  background: #fff;
+  border-radius: 4px;
+  padding: 20px;
+  font-size: 25px;
+  text-align: center;
+  transition: all 0.2s;
+  margin: 0 auto;
+  width: 300px;
+}
+
+
+
+button {
+  background: #2084FF; // #2084FF;
+  border: none;
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: 15px;
+  color: #fff;
+}
+
+#banner-message.alt {
+  background: #0084FF;
+  color: #fff;
+  margin-top: 40px;
+  width: 200px;
+}
+
+#banner-message.alt button {
+  background: #fff;
+  color: #000;
+}
+
+#container {
+  border-left: 1px solid #999;
+  border-top: 1px solid #999;
+}
+
+.row {
+  height: 15px;
+  clear: both;
+}
+
+.node {
+  float: left;
+  border-right: 1px solid #999;
+  border-bottom: 1px solid #999;
+  height: 100%;
+}
+
+#controls {
+  position: absolute;
+  right: 0.2em;
+  top: 0.2em;
+  background-color: #FF8400;
+  border-radius: 0.5em;
+  padding: 1em;
+  opacity: 0.8;
+}
+
+#controls:hover {
+  opacity: 1;
+}
+</style>
+
+</head>
+<body>
+
+
+<script>
+
+COLOR_THEMES = [
+	 ["#333333","#FFFFCC","#33BB33","#33BBBB","#BB3333","#BB33BB","#BBBB33","#BBBBBB","#BADDFF","#E2F2FF"]
+	,["#20F9FF","#2084FF","#007AFF","#0084FF","#008EFF","#0098FF","#00A2FF","#00ACFF","#00B6FF","#00C0FF"]
+	,["#0076FF","#007DFF","#0084FF","#008BFF","#0092FF","#0099FF","#00A0FF","#00A7FF","#00AEFF","#00B5FF"]
+	,["#0084FF","#008EFF","#0098FF","#00A2FF","#00ACFF","#00B6FF","#00C0FF","#00CAFF","#00D4FF","#00DEFF"]
+	,["#2084FF","#2091FF","#209EFF","#20ABFF","#20B8FF","#20C5FF","#20D2FF","#20DFFF","#20ECFF","#20F9FF"]
+	,["#20F9FF","#20ECFF","#20DFFF","#20D2FF","#20C5FF","#20B8FF","#20ABFF","#209EFF","#2091FF","#2084FF"]
+];
+
+
+var game = {
+  currentColorTheme: 1,
+  interval: 10,
+  gridSize: 35,
+  cellSize: 10,
+  generationCycle:2,
+  shiftFieldCycle:15,
+  shiftDirection:0,
+  toroidal: false,
+  started: false,
+  grid: [],
+  population: 0,
+  generation: 0,
+  maxState: 1,
+  born: [3],
+  survive: [2,3]
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+function initialize() {
+  document.getElementById("container").style.width = game.gridSize * game.cellSize + game.gridSize + "px";
+  for (var i = 1; i <= game.gridSize; i++) {
+    game.grid[i] = [];
+    var row = document.createElement("div");
+    row.className = "row";
+    row.id = "row" + i;
+    row.style.height = game.cellSize + "px";
+    document.getElementById("container").appendChild(row);
+    for (var j = 1; j <= game.gridSize; j++) {
+      game.grid[i][j] = 0;
+      var node = document.createElement("div");
+      node.className = "node";
+      node.id = "node" + i + "-" + j;
+      node.style.width = game.cellSize + "px";
+      node.onclick = function() {
+        click(this);
+        if (!game.started){drawGrid()};
+      }
+      document.getElementById("row" + i).appendChild(node);
+    }
+  }
+  initGame();
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+function drawGrid() {
+  var k = 0, e = 0
+
+  for (var i = 1; i <= game.gridSize; i++) {
+    for (var j = 1; j <= game.gridSize; j++) {
+      e=game.grid[i][j];
+      k+=e;
+      document.getElementById("node" + i + "-" + j).style.backgroundColor =
+        (e<1)?COLOR_THEMES[game.currentColorTheme][0]:
+        (e<2)?COLOR_THEMES[game.currentColorTheme][1]:
+        (e<3)?COLOR_THEMES[game.currentColorTheme][2]:
+        (e<4)?COLOR_THEMES[game.currentColorTheme][3]:
+        (e<5)?COLOR_THEMES[game.currentColorTheme][4]:
+        (e<6)?COLOR_THEMES[game.currentColorTheme][5]:
+        (e<7)?COLOR_THEMES[game.currentColorTheme][6]:
+        (e<8)?COLOR_THEMES[game.currentColorTheme][7]:
+        (e<9)?COLOR_THEMES[game.currentColorTheme][8]:
+        (e>=9)?COLOR_THEMES[game.currentColorTheme][9]:
+	"#000000";}}
+
+  document.getElementById("counters").innerHTML=
+    "<div>Generation: "+game.generation+"</div>"
+    +"<div>Population: "+game.population+"</div>"
+    ;
+} // drawGrid()
+
+
+function click(node) {
+  var nodeID = node.id.slice(4); // node3-16
+  var separator = nodeID.indexOf("-");
+  var nodeX = +nodeID.slice(0, separator);
+  var nodeY = +nodeID.slice(separator + 1);
+
+  // var _new = true
+  game.grid[nodeX][nodeY]++
+  if (game.grid[nodeX][nodeY]>game.maxState){
+    game.grid[nodeX][nodeY]=0
+  }
+  // if (_new){cells[++cellscount] = new Cell(x=nodeX,y=nodeY,state=stateNew)}
+} // click(node)
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+function shiftGrid() {
+  if (game.shiftDirection!=0){
+    for (var x = 1; x <= game.gridSize; x++) {
+      for (var y = 1; y <= game.gridSize; y++) {
+
+        if ((y==1)&(game.grid[x][y]>0)){game.population--}
+        game.grid[x][y] = game.grid[x][y+1];
+      }
+      game.grid[x][game.gridSize] = Math.floor(Math.random()*2);
+      if (game.grid[x][game.gridSize]>0){game.population++};
+    }
+  }
+}
+
+function newGeneration(){
+  var c = 0
+  var s = []
+
+  var newGrid = []
+  for (var x = 1; x <= game.gridSize; x++) {
+    newGrid[x] = [];
+    for (var y = 1; y <= game.gridSize; y++) {
+      newGrid[x][y] = 0;
+  }}
+
+  for (var x = 1; x <= game.gridSize; x++) {
+    for (var y = 1; y <= game.gridSize; y++) {
+      // top row
+      if (x==1){
+        // left column
+        if (y==1){
+          s[1]= 0                 ;s[2]= 0                 ;s[3]= 0                 ;
+          s[4]= 0                 ;s[5]= 0                 ;s[6]=game.grid[ x ][y+1];
+          s[7]= 0                 ;s[8]=game.grid[x+1][ y ];s[9]=game.grid[x+1][y+1];
+        }
+        // middle column
+        if ((y>1)&(y<game.gridSize)){
+          s[1]= 0                 ;s[2]= 0                 ;s[3]= 0                 ;
+          s[4]=game.grid[ x ][y-1];s[5]= 0                 ;s[6]=game.grid[ x ][y+1];
+          s[7]=game.grid[x+1][y-1];s[8]=game.grid[x+1][ y ];s[9]=game.grid[x+1][y+1];
+        }
+        // right column
+        if (y==game.gridSize){
+          s[1]= 0                 ;s[2]= 0                 ;s[3]= 0                 ;
+          s[4]=game.grid[ x ][y-1];s[5]= 0                 ;s[6]= 0                 ;
+          s[7]=game.grid[x+1][y-1];s[8]=game.grid[x+1][ y ];s[9]= 0                 ;
+        }
+      } // if (x=1)  // top row
+
+      // middle row
+      if ((x>1)&(x<game.gridSize)){
+        // left column
+        if (y==1){
+          s[1]= 0                 ;s[2]=game.grid[x-1][ y ];s[3]=game.grid[x-1][y+1];
+          s[4]= 0                 ;s[5]= 0                 ;s[6]=game.grid[ x ][y+1];
+          s[7]= 0                 ;s[8]=game.grid[x+1][ y ];s[9]=game.grid[x+1][y+1];
+        }
+        // middle column
+        if ((y>1)&(y<game.gridSize)){
+          s[1]=game.grid[x-1][y-1];s[2]=game.grid[x-1][ y ];s[3]=game.grid[x-1][y+1];
+          s[4]=game.grid[ x ][y-1];s[5]= 0                 ;s[6]=game.grid[ x ][y+1];
+          s[7]=game.grid[x+1][y-1];s[8]=game.grid[x+1][ y ];s[9]=game.grid[x+1][y+1];
+        }
+        // right column
+        if (y==game.gridSize){
+          s[1]=game.grid[x-1][y-1];s[2]=game.grid[x-1][ y ];s[3]= 0                 ;
+          s[4]=game.grid[ x ][y-1];s[5]= 0                 ;s[6]= 0                 ;
+          s[7]=game.grid[x+1][y-1];s[8]=game.grid[x+1][ y ];s[9]= 0                 ;
+        }
+      } // if ((x>1)&(x<game.gridSize)) // middle row
+
+      // bottom row
+      if (x==game.gridSize){
+        // left column
+        if (y==1){
+          s[1]= 0                 ;s[2]=game.grid[x-1][ y ];s[3]=game.grid[x-1][y+1];
+          s[4]= 0                 ;s[5]= 0                 ;s[6]=game.grid[ x ][y+1];
+          s[7]= 0                 ;s[8]= 0                 ;s[9]= 0                 ;
+        }
+        // middle column
+        if ((y>1)&(y<game.gridSize)){
+          s[1]=game.grid[x-1][y-1];s[2]=game.grid[x-1][ y ];s[3]=game.grid[x-1][y+1];
+          s[4]=game.grid[ x ][y-1];s[5]= 0                 ;s[6]=game.grid[ x ][y+1];
+          s[7]= 0                 ;s[8]= 0                 ;s[9]= 0                 ;
+        }
+        // right column
+        if (y==game.gridSize){
+          s[1]=game.grid[x-1][y-1];s[2]=game.grid[x-1][ y ];s[3]= 0                 ;
+          s[4]=game.grid[ x ][y-1];s[5]= 0                 ;s[6]= 0                 ;
+          s[7]= 0                 ;s[8]= 0                 ;s[9]= 0                 ;
+        }
+      } // (x=game.gridSize) // bottom row
+
+      c = s[1]+s[2]+s[3]+s[4]+s[5]+s[6]+s[7]+s[8]+s[9];
+
+      if (game.grid[x][y]==0){
+        if (game.born.indexOf(c)!=-1)
+          {newGrid[x][y] = 1}
+        else
+          {newGrid[x][y] = 0}
+      }
+      if (game.grid[x][y]==1){
+        if (game.survive.indexOf(c)!=-1)
+          {newGrid[x][y] = 1}
+        else
+          {newGrid[x][y] = 0}
+      }
+    }
+  }
+  for (var x = 1; x <= game.gridSize; x++) {
+    for (var y = 1; y <= game.gridSize; y++) {
+      game.grid[x][y]=newGrid[x][y]
+  }}
+  game.generation++;
+}
+
+var curShiftFieldCycle = 0;
+var curGenerationCycle = 0;
+
+function flow() {
+  // shift
+  if (curShiftFieldCycle%game.shiftFieldCycle==0){
+    curShiftFieldCycle = 0;
+    shiftGrid();
+  }
+  curShiftFieldCycle++;
+  // generation
+  if (curGenerationCycle%game.generationCycle==0){
+    generationCycle = 0;
+    newGeneration();
+  }
+  curGenerationCycle++;
+}; // flow
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+function initGame(){
+  game.started = false;
+  game.generation = 0;
+  game.population = 0;
+  for (var i = 1; i <= game.gridSize; i++) {
+    for (var j = 1; j <= game.gridSize; j++) {
+      game.grid[i][j] = Math.floor(Math.random()*2);
+      if (game.grid[i][j]>0){
+        game.population++;
+      }
+    }
+  }
+  drawGrid();
+}
+
+function saveGame(){
+  localStorage.setItem("game", JSON.stringify(game));
+}
+
+
+function loadGame(){
+  game = JSON.parse(localStorage.getItem("game"));
+  drawGrid();
+}
+
+
+function stopGame(){
+  if (game.started){
+    clearInterval(timerId);
+    game.started = false;
+  }
+};
+
+
+function startGame(){
+  game.started = true;
+  setTimeout(function run() {
+    flow();
+	  drawGrid();
+    if (game.started){
+	    timerId = setTimeout(run, game.interval)
+    }
+  }, game.interval);
+};
+
+function shiftSwitch(){
+  if (game.shiftDirection==0){game.shiftDirection++}else{game.shiftDirection--};
+};
+
+document.addEventListener("DOMContentLoaded", initialize);
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+</script>
+
+<h1 id="h1">Grid project</h1>
+<p></p>
+<div style="#controls">
+  <button id="init" onclick="initGame()">Random</button>
+  <button id="start" onclick="startGame()">Start</button>
+  <button id="stop" onclick="stopGame()">Stop</button>
+  <button id="save" onclick="saveGame()">Save</button>
+  <button id="load" onclick="loadGame()">Load</button>
+  <button id="shift" onclick="shiftSwitch()">Shift</button>
+</div>
+<p></p>
+<div id="container" style="width:0px;"></div>
+<p></p>
+<div id="counters" style="#banner-message"></div>
+<p></p>
+<div><a href="https://github.com/LuckyCat14/Grid">https://github.com/LuckyCat14/Grid</a></div>
+</body>
+</html>
